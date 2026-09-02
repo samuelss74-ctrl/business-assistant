@@ -1,0 +1,291 @@
+{
+  "name": "Assistant - Execute Action",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "execute-action",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "437bcad8-ee22-4025-8d4f-333f98cbc302",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -304
+      ],
+      "webhookId": "3004f679-a54c-43e9-b4f9-4ba52b70b609"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{$json.headers['x-shared-secret']}}",
+              "rightValue": "={{$env.N8N_SHARED_SECRET}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "86e7cca2-bbe0-4ce6-814d-5ce7af990e60",
+      "name": "Auth Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        144,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: 'unauthorized' } }}",
+        "options": {}
+      },
+      "id": "08b87606-5850-4e50-9d44-a6db0d715296",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        352,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{$json.body.payload.gmail_message_id}}"
+      },
+      "id": "32071662-3aa1-4fd7-bde6-7d2d231e732e",
+      "name": "Gmail: Get Original",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        352,
+        -384
+      ],
+      "webhookId": "0f56cc9f-bb63-4266-ab29-1961b48e2603",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8wTJK7wuaj9eicO6",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').first().json.body;\nconst text = body.decision === 'approve'\n  ? 'Hej! Vi bekräftar att vi kommer.'\n  : 'Hej! Tyvärr kan vi inte delta denna gång.';\nreturn [{ json: { ...body, replyText: text } }];"
+      },
+      "id": "65a401c3-e8c1-4db2-bd1e-21bb53576912",
+      "name": "Build Reply Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{$('Gmail: Get Original').item.json.id}}",
+        "message": "={{$json.replyText}}",
+        "options": {}
+      },
+      "id": "4daa51b7-43d7-45e4-871d-6a5a7a5c283b",
+      "name": "Gmail: Send Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        800,
+        -384
+      ],
+      "webhookId": "cee12be3-90f4-4261-9ba7-62acebb22a7e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8wTJK7wuaj9eicO6",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://tohlwjameqpsqicwfhzy.supabase.co/rest/v1/pending_actions?id=eq.{{$('Webhook').item.json.body.action_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'executed', resolved_at: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "id": "cf3d271f-5a65-432f-af25-86def5ee0374",
+      "name": "Supabase: Mark Executed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        -384
+      ],
+      "notes": "Byt https://tohlwjameqpsqicwfhzy.supabase.co."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tohlwjameqpsqicwfhzy.supabase.co/rest/v1/activity_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $('Webhook').item.json.body.user_id, action_type: $('Webhook').item.json.body.type, summary: $('Webhook').item.json.body.decision === 'approve' ? 'Kallelsen accepterad och besvarad.' : 'Kallelsen avböjd och besvarad.', status: 'success', payload: { action_id: $('Webhook').item.json.body.action_id } }) }}",
+        "options": {}
+      },
+      "id": "c03e4f60-3da2-49fd-bf89-b727494ff6a1",
+      "name": "Supabase: Log Activity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1232,
+        -384
+      ],
+      "notes": "Byt https://tohlwjameqpsqicwfhzy.supabase.co."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'executed' } }}",
+        "options": {}
+      },
+      "id": "18f0ad4c-0a16-4df8-a1b0-b5cd34830cd9",
+      "name": "Respond: Done",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        -384
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Auth Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth Check": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Get Original",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Get Original": {
+      "main": [
+        [
+          {
+            "node": "Build Reply Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reply Text": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Send Reply": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Mark Executed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Mark Executed": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Log Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Log Activity": {
+      "main": [
+        [
+          {
+            "node": "Respond: Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

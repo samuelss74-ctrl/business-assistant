@@ -1,0 +1,243 @@
+{
+  "name": "Assistant - Today",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "today",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "12096ad4-c537-4aa6-9db1-4ddd0b3bec97",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        80
+      ],
+      "webhookId": "99b68823-17ce-4235-a6bd-3cc4e1ed8e25"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{$json.headers['x-shared-secret']}}",
+              "rightValue": "={{$env.N8N_SHARED_SECRET}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "3b8ec412-3178-4f14-bdce-c7f6bd48077f",
+      "name": "Auth Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: 'unauthorized' } }}",
+        "options": {}
+      },
+      "id": "8ff8e8a5-e1e4-44cd-bc91-f24470e8ccff",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 10,
+        "filters": {
+          "q": "is:important is:unread newer_than:2d"
+        }
+      },
+      "id": "8daec739-ffd3-4bbe-97c5-fec87fa0bc65",
+      "name": "Gmail: Search Important",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "8a532ca6-37aa-4b1e-9b80-2501d773de6b",
+      "alwaysOutputData": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8wTJK7wuaj9eicO6",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "samuel.ss74@gmail.com",
+          "mode": "list",
+          "cachedResultName": "samuel.ss74@gmail.com"
+        },
+        "limit": 20,
+        "options": {}
+      },
+      "id": "b5e41854-fc83-4efd-88ef-fa50d2ac2ae1",
+      "name": "Calendar: Get Today",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        0
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "8fyDMsFaxiLOwjYK",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const emails = JSON.parse($input.first().json.candidates[0].content.parts[0].text);\nconst events = $('Calendar: Get Today').all().filter(i => i.json.id).map(i => ({\n  time: (i.json.start?.dateTime || i.json.start?.date || '').slice(11, 16) || 'Heldag',\n  title: i.json.summary || '(utan titel)',\n  location: i.json.location\n}));\nreturn [{ json: { events, important_emails: emails } }];"
+      },
+      "id": "80767fe0-1662-4803-a1d6-3aca2472762f",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "efa3b07c-5e8a-4fb4-9d1c-d2ec17d7d8f2",
+      "name": "Respond: Today",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={{$env.GEMINI_API_KEY}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: `Sammanfatta varje mejl i en mening på svenska. Om listan är tom, svara EXAKT med []. Svara ENDAST med JSON-array: [{\\\"from\\\": string, \\\"subject\\\": string, \\\"summary\\\": string}]. Mejl: ${JSON.stringify($('Gmail: Search Important').all().map(i => i.json).filter(m => m.id))}` }] }], generationConfig: { responseMimeType: 'application/json' } }) }}",
+        "options": {}
+      },
+      "id": "0b921858-af4d-4143-9d8c-a8682916fce9",
+      "name": "Gemini: Summarize Emails",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Auth Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth Check": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Search Important",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Search Important": {
+      "main": [
+        [
+          {
+            "node": "Calendar: Get Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar: Get Today": {
+      "main": [
+        [
+          {
+            "node": "Gemini: Summarize Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond: Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: Summarize Emails": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

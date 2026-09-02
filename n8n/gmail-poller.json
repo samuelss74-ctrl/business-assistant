@@ -1,0 +1,314 @@
+{
+  "name": "Assistant - Gmail Poller (fotbollskallelser)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "bd39ba39-472e-49bf-9a4a-89e16ca44e28",
+      "name": "Every 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -960,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 10,
+        "filters": {
+          "q": "newer_than:2d (kallelse OR träning OR match)"
+        }
+      },
+      "id": "254a29ec-41de-4270-945b-76cde6e20edd",
+      "name": "Gmail: Search Team Mail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -736,
+        816
+      ],
+      "webhookId": "21627eca-9146-464d-b21a-4257035bfedc",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8wTJK7wuaj9eicO6",
+          "name": "Gmail account"
+        }
+      },
+      "notes": "Byt sökfrasen (q) mot något som matchar din faktiska lagmejl-avsändare, t.ex. 'from:laget@minfotboll.se newer_than:1d'."
+    },
+    {
+      "parameters": {
+        "url": "=https://tohlwjameqpsqicwfhzy.supabase.co/rest/v1/pending_actions?payload->>gmail_message_id=eq.{{$json.id}}&select=id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d3d745b8-fa2d-4d9e-a34e-3ae96c4aa447",
+      "name": "Supabase: Already Seen?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -528,
+        816
+      ],
+      "alwaysOutputData": true,
+      "notes": "Byt https://tohlwjameqpsqicwfhzy.supabase.co mot ditt projekts URL."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json._alreadySeen}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "id": "f5d9916e-4c8f-4a51-aa26-7f3d2eff0688"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8ec196fb-1d19-4efb-972a-37286d85b359",
+      "name": "IF: New Mail",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={{$env.GEMINI_API_KEY}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: `Läs detta mejl och avgör om det är en kallelse till träning eller match. Svara ENDAST med JSON: {\\\"is_invite\\\": boolean, \\\"title\\\": string, \\\"time\\\": string, \\\"location\\\": string, \\\"gmail_message_id\\\": string}. Sätt gmail_message_id till exakt samma värde som fältet \\\"id\\\" i mejlet nedan. Mejl: ${JSON.stringify($json)}` }] }], generationConfig: { responseMimeType: 'application/json' } }) }}",
+        "options": {}
+      },
+      "id": "7f3722ab-e593-44e8-b59b-7e26e5a5c356",
+      "name": "Gemini: Classify Invite",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        144,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => {\n  const parsed = JSON.parse(item.json.candidates[0].content.parts[0].text);\n  const mail = $('Gmail: Search Team Mail').itemMatching(i).json;\n  return { json: { ...parsed, gmail_message_id: mail.id } };\n});"
+      },
+      "id": "81c962d1-adab-4363-8078-ce2a18cd3438",
+      "name": "Parse Invite",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{$json.is_invite}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "8a847307-5fef-44a0-880f-dcdf43c55cff",
+      "name": "IF: Is Invite",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        592,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tohlwjameqpsqicwfhzy.supabase.co/rest/v1/pending_actions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $env.PILOT_USER_ID, tier: 'red', type: 'accept_invite', summary: `Ny kallelse — ${$json.title}`, payload: { detail: `${$json.time} — ${$json.location}`, gmail_message_id: $json.gmail_message_id, actions: [ { label: 'Acceptera', decision: 'approve' }, { label: 'Tacka nej', decision: 'reject' }, { label: 'Fråga mig', decision: 'ask' } ] } }) }}",
+        "options": {}
+      },
+      "id": "8ea682fb-f11e-40f8-8bd8-1e421d452982",
+      "name": "Supabase: Create Pending Action",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        816,
+        736
+      ],
+      "notes": "Byt https://tohlwjameqpsqicwfhzy.supabase.co. Kräver env-variabeln PILOT_USER_ID (din Supabase auth.users-UUID) satt i n8n Cloud instance settings."
+    },
+    {
+      "parameters": {
+        "jsCode": "const gmailItems = $('Gmail: Search Team Mail').all();\nconst checked = $input.all();\nreturn gmailItems.map((item, i) => {\n  const seen = checked[i] && checked[i].json && Object.keys(checked[i].json).length > 0;\n  return { json: { ...item.json, _alreadySeen: !!seen } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        816
+      ],
+      "id": "70c52fa6-4442-4cc5-8514-caf378693cba",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Every 5 min": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Search Team Mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Search Team Mail": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Already Seen?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Already Seen?": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: New Mail": {
+      "main": [
+        [
+          {
+            "node": "Gemini: Classify Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: Classify Invite": {
+      "main": [
+        [
+          {
+            "node": "Parse Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Invite": {
+      "main": [
+        [
+          {
+            "node": "IF: Is Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Is Invite": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Create Pending Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "IF: New Mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
