@@ -137,7 +137,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const prev = $('Parse Intent').first().json;\nconst tierRows = $input.first().json;\nconst tier = Array.isArray(tierRows) && tierRows[0] ? tierRows[0].tier : 'yellow';\nreturn [{ json: { ...prev, tier } }];"
+        "jsCode": "const prev = $('Parse Intent').first().json;\nconst tierRow = $input.first().json;\nconst tier = (tierRow && tierRow.tier) || 'yellow';\nreturn [{ json: { ...prev, tier } }];"
       },
       "id": "9d20d587-e382-4cab-90b5-786e9a6ac34b",
       "name": "Merge Tier",
