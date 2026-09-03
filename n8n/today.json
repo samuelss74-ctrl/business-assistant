@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const emails = JSON.parse($input.first().json.candidates[0].content.parts[0].text);\nconst events = $('Calendar: Get Today').all().filter(i => i.json.id).map(i => ({\n  time: (i.json.start?.dateTime || i.json.start?.date || '').slice(11, 16) || 'Heldag',\n  title: i.json.summary || '(utan titel)',\n  location: i.json.location\n}));\nreturn [{ json: { events, important_emails: emails } }];"
+        "jsCode": "const emails = JSON.parse($input.first().json.choices[0].message.content).emails || [];\nconst events = $('Calendar: Get Today').all().filter(i => i.json.id).map(i => ({\n  time: (i.json.start?.dateTime || i.json.start?.date || '').slice(11, 16) || 'Heldag',\n  title: i.json.summary || '(utan titel)',\n  location: i.json.location\n}));\nreturn [{ json: { events, important_emails: emails } }];"
       },
       "id": "80767fe0-1662-4803-a1d6-3aca2472762f",
       "name": "Build Response",
@@ -149,10 +149,19 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={{$env.GEMINI_API_KEY}}",
+        "url": "=https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY}}"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: `Sammanfatta varje mejl i en mening på svenska. Om listan är tom, svara EXAKT med []. Svara ENDAST med JSON-array: [{\\\"from\\\": string, \\\"subject\\\": string, \\\"summary\\\": string}]. Mejl: ${JSON.stringify($('Gmail: Search Important').all().map(i => i.json).filter(m => m.id))}` }] }], generationConfig: { responseMimeType: 'application/json' } }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: \"openai/gpt-oss-20b\", messages: [{ role: \"user\", content: `Sammanfatta varje mejl i en mening på svenska. Om listan är tom, svara EXAKT med {\"emails\": []}. Svara ENDAST med JSON: {\"emails\": [{\\\"from\\\": string, \\\"subject\\\": string, \\\"summary\\\": string}]}. Mejl: ${JSON.stringify($('Gmail: Search Important').all().map(i => i.json).filter(m => m.id))}` }], response_format: { type: \"json_object\" } }) }}",
         "options": {}
       },
       "id": "0b921858-af4d-4143-9d8c-a8682916fce9",

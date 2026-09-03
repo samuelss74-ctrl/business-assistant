@@ -111,10 +111,19 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={{$env.GEMINI_API_KEY}}",
+        "url": "=https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY}}"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: `Läs detta mejl och avgör om det är en kallelse till träning eller match. Svara ENDAST med JSON: {\\\"is_invite\\\": boolean, \\\"title\\\": string, \\\"time\\\": string, \\\"location\\\": string, \\\"gmail_message_id\\\": string}. Sätt gmail_message_id till exakt samma värde som fältet \\\"id\\\" i mejlet nedan. Mejl: ${JSON.stringify($json)}` }] }], generationConfig: { responseMimeType: 'application/json' } }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: \"openai/gpt-oss-20b\", messages: [{ role: \"user\", content: `Läs detta mejl och avgör om det är en kallelse till träning eller match. Svara ENDAST med JSON: {\\\"is_invite\\\": boolean, \\\"title\\\": string, \\\"time\\\": string, \\\"location\\\": string, \\\"gmail_message_id\\\": string}. Sätt gmail_message_id till exakt samma värde som fältet \\\"id\\\" i mejlet nedan. Mejl: ${JSON.stringify($json)}` }], response_format: { type: \"json_object\" } }) }}",
         "options": {}
       },
       "id": "7f3722ab-e593-44e8-b59b-7e26e5a5c356",
@@ -128,7 +137,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return $input.all().map((item, i) => {\n  const parsed = JSON.parse(item.json.candidates[0].content.parts[0].text);\n  const mail = $('Gmail: Search Team Mail').itemMatching(i).json;\n  return { json: { ...parsed, gmail_message_id: mail.id } };\n});"
+        "jsCode": "return $input.all().map((item, i) => {\n  const parsed = JSON.parse(item.json.choices[0].message.content);\n  const mail = $('Gmail: Search Team Mail').itemMatching(i).json;\n  return { json: { ...parsed, gmail_message_id: mail.id } };\n});"
       },
       "id": "81c962d1-adab-4363-8078-ce2a18cd3438",
       "name": "Parse Invite",

@@ -68,10 +68,19 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={{$env.GEMINI_API_KEY}}",
+        "url": "=https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY}}"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: `Du är en personlig assistent. Klassificera användarens meddelande till EXAKT en av dessa intents: general_chat, check_calendar, read_email, draft_reply, accept_invite, decline_invite, book_meeting, cancel_meeting, send_email. Om intent kräver att söka i mejl, ge en kort sökfras (search_query) på svenska/engelska som passar Gmails sökfält. Svara ENDAST med JSON: {\\\"intent\\\": string, \\\"search_query\\\": string|null}. Meddelande: \\\"${$json.body.message}\\\"` }] }], generationConfig: { responseMimeType: 'application/json' } }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: \"openai/gpt-oss-20b\", messages: [{ role: \"user\", content: `Du är en personlig assistent. Klassificera användarens meddelande till EXAKT en av dessa intents: general_chat, check_calendar, read_email, draft_reply, accept_invite, decline_invite, book_meeting, cancel_meeting, send_email. Om intent kräver att söka i mejl, ge en kort sökfras (search_query) på svenska/engelska som passar Gmails sökfält. Svara ENDAST med JSON: {\\\"intent\\\": string, \\\"search_query\\\": string|null}. Meddelande: \\\"${$json.body.message}\\\"` }], response_format: { type: \"json_object\" } }) }}",
         "options": {}
       },
       "id": "6c5fc86d-4a94-4031-b265-98aa79c44e31",
@@ -85,7 +94,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const geminiText = $input.first().json.candidates[0].content.parts[0].text;\nconst parsed = JSON.parse(geminiText);\nconst webhookBody = $('Webhook').first().json.body;\nreturn [{ json: { user_id: webhookBody.user_id, message: webhookBody.message, intent: parsed.intent, search_query: parsed.search_query || webhookBody.message } }];"
+        "jsCode": "const groqText = $input.first().json.choices[0].message.content;\nconst parsed = JSON.parse(groqText);\nconst webhookBody = $('Webhook').first().json.body;\nreturn [{ json: { user_id: webhookBody.user_id, message: webhookBody.message, intent: parsed.intent, search_query: parsed.search_query || webhookBody.message } }];"
       },
       "id": "d2a2eb96-23c7-4c0e-92c9-00bbb232562f",
       "name": "Parse Intent",
@@ -336,10 +345,19 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={{$env.GEMINI_API_KEY}}",
+        "url": "=https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY}}"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: `Du är en personlig assistent. Ursprungligt meddelande: \"${$('Merge Tier').first().json.message}\". Kontext (Gmail/kalender-resultat, kan vara tom): ${JSON.stringify($json)}. Svara kort och konkret på svenska med vad du hittade.` }] }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: \"openai/gpt-oss-20b\", messages: [{ role: \"user\", content: `Du är en personlig assistent. Ursprungligt meddelande: \"${$('Merge Tier').first().json.message}\". Kontext (Gmail/kalender-resultat, kan vara tom): ${JSON.stringify($json)}. Svara kort och konkret på svenska med vad du hittade.` }] }) }}",
         "options": {}
       },
       "id": "009b7479-5685-412d-b031-4f7d88b78bf1",
@@ -353,7 +371,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const text = $input.first().json.candidates[0].content.parts[0].text;\nreturn [{ json: { reply: text } }];"
+        "jsCode": "const text = $input.first().json.choices[0].message.content;\nreturn [{ json: { reply: text } }];"
       },
       "id": "a0210b6c-abfb-4215-ba04-a1491a229e44",
       "name": "Extract Reply",
