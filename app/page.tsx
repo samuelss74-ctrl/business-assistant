@@ -8,6 +8,7 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  isError?: boolean;
 };
 
 // Minimal typing for the browser Speech Recognition API (not in lib.dom.d.ts).
@@ -99,8 +100,9 @@ export default function ChatPage() {
         {
           id: data.id ?? `assistant-${Date.now()}`,
           role: "assistant",
-          content: res.ok ? data.reply : `Något gick fel: ${data.error ?? "okänt fel"}`,
+          content: res.ok ? data.reply : "Kunde inte svara just nu. Försök igen om en liten stund.",
           created_at: new Date().toISOString(),
+          isError: !res.ok,
         },
       ]);
     } catch {
@@ -109,8 +111,9 @@ export default function ChatPage() {
         {
           id: `assistant-error-${Date.now()}`,
           role: "assistant",
-          content: "Kunde inte nå assistenten just nu.",
+          content: "Kunde inte nå assistenten just nu. Försök igen om en liten stund.",
           created_at: new Date().toISOString(),
+          isError: true,
         },
       ]);
     } finally {
@@ -127,7 +130,10 @@ export default function ChatPage() {
           </p>
         )}
         {messages.map((m) => (
-          <div key={m.id} className={`chat-bubble chat-bubble-${m.role}`}>
+          <div
+            key={m.id}
+            className={`chat-bubble chat-bubble-${m.role}${m.isError ? " chat-bubble-error" : ""}`}
+          >
             {m.content}
           </div>
         ))}
@@ -141,7 +147,12 @@ export default function ChatPage() {
             onClick={toggleMic}
             aria-label="Prata istället för att skriva"
           >
-            🎙
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true">
+              <rect x="9" y="2.5" width="6" height="11" rx="3" fill="currentColor" />
+              <path d="M6 11v1a6 6 0 0 0 12 0v-1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M12 18.5v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M8.5 21.5h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
           </button>
         )}
         <input
