@@ -273,6 +273,27 @@
                   "version": 1
                 }
               }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.intent}}",
+                    "rightValue": "general_chat",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              }
             }
           ]
         },
@@ -357,7 +378,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: \"openai/gpt-oss-20b\", messages: [{ role: \"user\", content: `Du är en personlig assistent. Ursprungligt meddelande: \"${$('Merge Tier').first().json.message}\". Kontext (Gmail/kalender-resultat, kan vara tom): ${JSON.stringify($json)}. Svara kort och konkret på svenska med vad du hittade.` }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: \"openai/gpt-oss-20b\", messages: [{ role: \"user\", content: `Du är en personlig assistent. Ursprungligt meddelande: \"${$('Merge Tier').first().json.message}\". Eventuell kontext (Gmail/kalender-resultat, kan sakna relevans för ett vanligt chattmeddelande): ${JSON.stringify($json)}. Svara kort, konkret och naturligt på svenska. Om kontexten inte är relevant för meddelandet, ignorera den och svara ändå naturligt.` }] }) }}",
         "options": {}
       },
       "id": "009b7479-5685-412d-b031-4f7d88b78bf1",
@@ -553,6 +574,13 @@
         [
           {
             "node": "Calendar: Get Today",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gemini: Compose Reply",
             "type": "main",
             "index": 0
           }
